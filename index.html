@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Calculadora Aporte al IESS - F. Muñoz</title>
+
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0B5ED7" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="IESS Calc" />
+<meta name="mobile-web-app-capable" content="yes" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --azul: #0B5ED7;
+    --celeste-bg: #EAF4FB;
+    --celeste-claro: #F3FAFF;
+    --borde: #BFE0F7;
+    --texto: #1B2A38;
+    --texto-suave: #4a6b8a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--celeste-bg);
+    color: var(--texto);
+  }
+  .wrap { max-width: 460px; margin: 0 auto; padding: 24px 16px 60px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--azul); color: white; padding: 6px 14px;
+    border-radius: 999px; font-size: 13px; margin-bottom: 10px;
+  }
+  h1 { color: var(--azul); font-size: 22px; margin: 0; line-height: 1.3; }
+  .subtitulo { color: var(--texto-suave); font-size: 13px; margin: 4px 0 0; }
+  .card {
+    background: white; border-radius: 14px; padding: 18px;
+    box-shadow: 0 2px 10px rgba(11,94,215,0.08);
+  }
+  label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
+  select, input[type=number] {
+    width: 100%; padding: 10px 12px; margin-bottom: 14px;
+    border-radius: 8px; border: 2px solid var(--borde);
+    background: var(--celeste-claro); font-size: 15px;
+  }
+  .fila-btn { display: flex; gap: 8px; }
+  button { cursor: pointer; font-family: inherit; }
+  .btn-primario {
+    flex: 1; background: var(--azul); color: white; border: none;
+    border-radius: 10px; padding: 12px 0; font-size: 15px; font-weight: 600;
+  }
+  .btn-secundario {
+    background: var(--celeste-bg); color: var(--azul); border: 2px solid var(--borde);
+    border-radius: 10px; padding: 0 14px;
+  }
+  .aviso {
+    margin-top: 12px; background: #DCEEFB; color: var(--azul);
+    padding: 10px 12px; border-radius: 8px; font-size: 13px; text-align: center;
+  }
+  .resultado {
+    background: var(--celeste-claro); border: 1px solid var(--borde);
+    border-radius: 14px; padding: 18px; margin-top: 16px;
+  }
+  .resultado h2 { font-size: 16px; color: var(--azul); margin: 0 0 12px; }
+  .resultado p { margin: 0 0 10px; font-size: 14px; }
+  .btn-guardar {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; background: var(--azul); color: white; border: none;
+    border-radius: 10px; padding: 10px 0; font-size: 14px; font-weight: 600;
+  }
+  .hist-header { display: flex; align-items: center; justify-content: space-between; margin: 24px 0 10px; }
+  .hist-header h2 { font-size: 16px; color: var(--azul); margin: 0; }
+  .icon-btn {
+    background: white; border: 1px solid var(--borde); border-radius: 8px;
+    padding: 6px 10px; color: var(--azul); font-size: 16px;
+  }
+  .hist-vacio {
+    background: white; border-radius: 12px; padding: 16px; text-align: center;
+    color: var(--texto-suave); font-size: 13px;
+  }
+  .hist-item {
+    background: white; border-radius: 12px; padding: 14px;
+    box-shadow: 0 1px 6px rgba(11,94,215,0.06); margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .hist-item .tipo { margin: 0; font-size: 14px; font-weight: 600; }
+  .hist-item .fecha { margin: 2px 0; font-size: 12px; color: var(--texto-suave); }
+  .hist-item .valor { margin: 0; font-size: 13px; color: var(--azul); font-weight: 600; }
+  .hist-item .base { margin: 2px 0 0; font-size: 12px; color: #6b8098; }
+  .hist-acciones { display: flex; gap: 6px; }
+  .btn-editar { background: var(--celeste-bg); border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; color: var(--azul); }
+  .btn-eliminar { background: #FDEDED; border: 1px solid #F5C2C2; border-radius: 8px; padding: 6px 8px; color: #C0392B; }
+
+  #print-area { display: none; }
+  @media print {
+    .no-print { display: none !important; }
+    #print-area { display: block !important; padding: 24px; font-family: Arial, sans-serif; }
+    body { background: white !important; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 6px; border: 1px solid #BFE0F7; text-align: left; }
+    thead tr { background: #DCEEFB; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap no-print">
+  <div style="text-align:center; margin-bottom:20px;">
+    <div class="badge">🏛️ Seguro Social del Ecuador</div>
+    <h1>Calculadora Aporte al IESS</h1>
+    <p class="subtitulo">F. Muñoz</p>
+  </div>
+
+  <div class="card">
+    <label for="tipo">Tipo de aportación:</label>
+    <select id="tipo">
+      <option value="trabajador">como Trabajador</option>
+      <option value="empleador">como Empleador</option>
+      <option value="voluntario">como Afiliado voluntario</option>
+    </select>
+
+    <label id="labelSalario" for="salario">Salario mensual:</label>
+    <input type="number" id="salario" inputmode="decimal" placeholder="Ej. 482" />
+
+    <div class="fila-btn">
+      <button class="btn-primario" id="btnCalcular">Calcular</button>
+      <button class="btn-secundario" id="btnNuevo" title="Nuevo cálculo">↺</button>
+    </div>
+  </div>
+
+  <div id="aviso" class="aviso" style="display:none;"></div>
+
+  <div id="resultado" class="resultado" style="display:none;">
+    <h2>Resultado</h2>
+    <p><strong>Salario base para el cálculo:</strong> <span id="rBase"></span> USD$</p>
+    <p><strong id="rPctLabel"></strong>: <span id="rPct"></span>%</p>
+    <p><strong>Valor por concepto de "<span id="rConcepto"></span>"</strong>: <span id="rValor"></span> USD$</p>
+    <button class="btn-guardar" id="btnGuardar">💾 <span id="btnGuardarTexto">Guardar proyecto</span></button>
+  </div>
+
+  <div class="hist-header">
+    <h2>Historial de proyectos</h2>
+    <div style="display:flex; gap:6px;">
+      <button class="icon-btn" id="btnExcel" title="Exportar a Excel">📊</button>
+      <button class="icon-btn" id="btnPDF" title="Exportar a PDF">📄</button>
+    </div>
+  </div>
+  <div id="listaHistorial"></div>
+</div>
+
+<div id="print-area">
+  <h1 style="color:#0B5ED7;">Calculadora Aporte al IESS - F. Muñoz</h1>
+  <h3>Historial de proyectos de aportes</h3>
+  <table>
+    <thead>
+      <tr><th>Fecha</th><th>Tipo</th><th>Base USD</th><th>%</th><th>Concepto</th><th>Valor USD</th></tr>
+    </thead>
+    <tbody id="printBody"></tbody>
+  </table>
+</div>
+
+<script>
+const RATES = {
+  empleador: { label: "como Empleador", inputLabel: "Salario mensual", pctLabel: "Porcentaje de aportación patronal (el empleador aporta)", concepto: "Aporte patronal", pct: 11.15 },
+  trabajador: { label: "como Trabajador", inputLabel: "Salario mensual", pctLabel: "Porcentaje de aportación personal (el trabajador aporta)", concepto: "Aporte personal", pct: 9.45 },
+  voluntario: { label: "como Afiliado voluntario", inputLabel: "Ingreso mensual", pctLabel: "Porcentaje de aportación del afiliado voluntario", concepto: "Aporte al IESS", pct: 20.5 },
+};
+const STORAGE_KEY = "historial-iess-fmunoz";
+
+let historial = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let resultadoActual = null;
+let editId = null;
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function mostrarAviso(msg) {
+  const el = $("aviso");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(mostrarAviso._t);
+  mostrarAviso._t = setTimeout(() => (el.style.display = "none"), 2800);
+}
+
+function actualizarLabelSalario() {
+  const cfg = RATES[$("tipo").value];
+  $("labelSalario").textContent = cfg.inputLabel + ":";
+}
+$("tipo").addEventListener("change", actualizarLabelSalario);
+actualizarLabelSalario();
+
+function calcular() {
+  const val = parseFloat($("salario").value);
+  if (isNaN(val) || val <= 0) {
+    mostrarAviso("Ingresa un valor numérico mayor a 0.");
+    return;
+  }
+  const tipo = $("tipo").value;
+  const cfg = RATES[tipo];
+  const valorAporte = (val * cfg.pct) / 100;
+  resultadoActual = { tipo, salarioBase: val, pct: cfg.pct, pctLabel: cfg.pctLabel, concepto: cfg.concepto, valorAporte };
+  $("rBase").textContent = fmt(val);
+  $("rPctLabel").textContent = cfg.pctLabel;
+  $("rPct").textContent = cfg.pct;
+  $("rConcepto").textContent = cfg.concepto;
+  $("rValor").textContent = fmt(valorAporte);
+  $("btnGuardarTexto").textContent = editId ? "Guardar cambios" : "Guardar proyecto";
+  $("resultado").style.display = "block";
+}
+$("btnCalcular").addEventListener("click", calcular);
+
+function nuevoCalculo() {
+  $("tipo").value = "trabajador";
+  $("salario").value = "";
+  $("resultado").style.display = "none";
+  resultadoActual = null;
+  editId = null;
+  actualizarLabelSalario();
+}
+$("btnNuevo").addEventListener("click", nuevoCalculo);
+
+function persistir() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(historial));
+  renderHistorial();
+}
+
+function guardarProyecto() {
+  if (!resultadoActual) {
+    mostrarAviso("Primero calcula un aporte para poder guardarlo.");
+    return;
+  }
+  const registro = {
+    id: editId || Date.now().toString(),
+    tipo: resultadoActual.tipo,
+    tipoLabel: RATES[resultadoActual.tipo].label,
+    salarioBase: resultadoActual.salarioBase,
+    pct: resultadoActual.pct,
+    concepto: resultadoActual.concepto,
+    valorAporte: resultadoActual.valorAporte,
+    fecha: new Date().toLocaleDateString("es-EC", { year: "numeric", month: "short", day: "2-digit" }),
+  };
+  if (editId) {
+    historial = historial.map((h) => (h.id === editId ? registro : h));
+    mostrarAviso("Proyecto actualizado en el historial.");
+  } else {
+    historial = [registro, ...historial];
+    mostrarAviso("Proyecto guardado en el historial.");
+  }
+  editId = null;
+  persistir();
+}
+$("btnGuardar").addEventListener("click", guardarProyecto);
+
+function modificarProyecto(id) {
+  const item = historial.find((h) => h.id === id);
+  if (!item) return;
+  $("tipo").value = item.tipo;
+  $("salario").value = item.salarioBase;
+  actualizarLabelSalario();
+  resultadoActual = { tipo: item.tipo, salarioBase: item.salarioBase, pct: item.pct, pctLabel: RATES[item.tipo].pctLabel, concepto: item.concepto, valorAporte: item.valorAporte };
+  editId = item.id;
+  $("rBase").textContent = fmt(item.salarioBase);
+  $("rPctLabel").textContent = RATES[item.tipo].pctLabel;
+  $("rPct").textContent = item.pct;
+  $("rConcepto").textContent = item.concepto;
+  $("rValor").textContent = fmt(item.valorAporte);
+  $("btnGuardarTexto").textContent = "Guardar cambios";
+  $("resultado").style.display = "block";
+  mostrarAviso("Editando proyecto. Ajusta los datos y presiona «Guardar cambios».");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function eliminarProyecto(id) {
+  historial = historial.filter((h) => h.id !== id);
+  if (editId === id) nuevoCalculo();
+  persistir();
+  mostrarAviso("Proyecto eliminado del historial.");
+}
+
+function renderHistorial() {
+  const cont = $("listaHistorial");
+  if (historial.length === 0) {
+    cont.innerHTML = '<div class="hist-vacio">Aún no has guardado ningún proyecto de aporte.</div>';
+  } else {
+    cont.innerHTML = historial.map((h) => `
+      <div class="hist-item">
+        <div>
+          <p class="tipo">${h.tipoLabel}</p>
+          <p class="fecha">${h.fecha} · ${h.pct}%</p>
+          <p class="valor">${h.concepto}: ${fmt(h.valorAporte)} USD$</p>
+          <p class="base">Base: ${fmt(h.salarioBase)} USD$</p>
+        </div>
+        <div class="hist-acciones">
+          <button class="btn-editar" onclick="modificarProyecto('${h.id}')">✏️</button>
+          <button class="btn-eliminar" onclick="eliminarProyecto('${h.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join("");
+  }
+  $("printBody").innerHTML = historial.map((h) => `
+    <tr><td>${h.fecha}</td><td>${h.tipoLabel}</td><td>${fmt(h.salarioBase)}</td><td>${h.pct}%</td><td>${h.concepto}</td><td>${fmt(h.valorAporte)}</td></tr>
+  `).join("");
+}
+renderHistorial();
+
+function exportarExcel() {
+  if (historial.length === 0) {
+    mostrarAviso("No hay proyectos en el historial para exportar.");
+    return;
+  }
+  const filas = historial.map((h) => ({
+    "Fecha": h.fecha,
+    "Tipo de aportación": h.tipoLabel,
+    "Salario/Ingreso base (USD)": h.salarioBase,
+    "Porcentaje (%)": h.pct,
+    "Concepto": h.concepto,
+    "Valor del aporte (USD)": Number(h.valorAporte.toFixed(2)),
+  }));
+  const ws = XLSX.utils.json_to_sheet(filas);
+  ws["!cols"] = [{ wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 16 }, { wch: 20 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Historial IESS");
+  XLSX.writeFile(wb, "Historial_Aportes_IESS.xlsx");
+}
+$("btnExcel").addEventListener("click", exportarExcel);
+$("btnPDF").addEventListener("click", () => window.print());
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
